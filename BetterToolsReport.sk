@@ -1,0 +1,164 @@
+# Reportar um jogador
+command /reportar <player> [<text>]:
+    trigger:
+        if arg-1 is not set:
+            send "&c❌ Use: /report <jogador> <motivo>"
+            stop
+        if arg-2 is not set:
+            send "&c❌ Use: /report <jogador> <motivo>"
+            stop
+        if arg-1 is player:
+            send "&c❌ Você não pode se reportar!"
+            stop
+
+        add 1 to {reportes::contador}
+        set {reportes::%{reportes::contador}%::nick} to player
+        set {reportes::%{reportes::contador}%::alvo} to arg-1
+        set {reportes::%{reportes::contador}%::motivo} to arg-2
+        set {reportes::%{reportes::contador}%::prova} to "Nenhuma prova enviada"
+        set {reportes::%{reportes::contador}%::status} to "Pendente"
+
+        send "&a✅ Seu report foi enviado para a staff!" to player
+        send "&6🎲 Caso tenha provas, envie com &3/prova&7!" to player
+
+        wait 1 tick
+        loop all players:
+            if loop-player has permission "report.staff":
+                send "&c✉ Novo report recebido!" to loop-player
+                send "&7Use &e/verreports &7para ver." to loop-player
+
+# Ver todos os reports
+command /verreports:
+    permission: report.staff
+    trigger:
+        if {reportes::contador} is not set:
+            send "&a✅ Nenhum report no momento."
+            stop
+
+        send "&6Lista de Reports:"
+        loop {reportes::contador} times:
+            set {_id} to loop-number
+            if {reportes::%{_id}%::nick} is set:
+                send "&7#%{_id}% &8- &f%{reportes::%{_id}%::nick}% &7reportou &c%{reportes::%{_id}%::alvo}% &8(&e%{reportes::%{_id}%::status}%&8)"
+
+# Ver detalhes de um report específico
+command /verreport <number>:
+    permission: report.staff
+    trigger:
+        if {reportes::%arg-1%::nick} is not set:
+            send "&c❌ Report #%arg-1% não encontrado."
+            stop
+
+        send "&4Report #%arg-1%"
+        send "&bAutor: &a%{reportes::%arg-1%::nick}%"
+        send "&bAlvo: &c%{reportes::%arg-1%::alvo}%"
+        send "&bMotivo: &2%{reportes::%arg-1%::motivo}%"
+        send "&bProva: &6%{reportes::%arg-1%::prova}%"
+        send "&bStatus: &3%{reportes::%arg-1%::status}%"
+
+# Negar um report
+command /reportnegar <number> <text>:
+    permission: report.staff
+    trigger:
+        if {reportes::%arg-1%::nick} is not set:
+            send "&c❌ Report #%arg-1% não encontrado."
+            stop
+        set {reportes::%arg-1%::status} to "Negado"
+        set {reportes::%{reportes::contador}%::motivo} to arg-2
+        send "&c❌ Você negou o report #%arg-1%"
+        send "&c❌ Seu report #%arg-1% foi negado pela staff pelo motivo: &e%arg-2%." to {reportes::%arg-1%::nick}
+
+# Aceitar um report
+command /reportaceitar <number>:
+    permission: report.staff
+    trigger:
+        if {reportes::%arg-1%::nick} is not set:
+            send "&c❌ Report #%arg-1% não encontrado."
+            stop
+        set {reportes::%arg-1%::status} to "Aceito"
+        send "&a✅ Você aceitou o report #%arg-1%"
+        send "&a✅ Seu report #%arg-1% foi aceito pela staff." to {reportes::%arg-1%::nick}
+
+# Adicionar prova
+command /prova <text> <text>:
+    trigger:
+        set {_id} to arg-1 parsed as number
+        if {_id} is not set:
+            send "&c❌ ID inválido!"
+            send "&a🔮 Para ver o ID do seu reporte, use &b/reportids"
+            stop
+        if {reportes::%{_id}%::nick} is not player:
+            send "&c❌ Esse report não foi feito por você!"
+            stop
+        if argument 2 contains "imgur.com":
+            set {reportes::%{_id}%::prova} to arg-2
+            send "&a✅ Prova adicionada ao report #%{_id}%"
+        else:
+            send "&c❌ Link inválido! Use imgur.com ou youtube.com"
+
+# Ver ID dos reports
+command /reportids:
+    trigger:
+        set {_tem} to false
+        send "&6📄 Seus reports:"
+        loop {reportes::contador} times:
+            set {_id} to loop-number
+            if {reportes::%{_id}%::nick} is player:
+                set {_tem} to true
+                send "&8#%{_id}% &7- &bStatus: &f%{reportes::%{_id}%::status}% &7| &eMotivo: &f%{reportes::%{_id}%::motivo}%"
+
+        if {_tem} is false:
+            send "&c❌ Você não fez nenhum report ainda."
+
+# Deletar um report
+command /reportdeletar <number>:
+    permission: report.staff
+    trigger:
+        if {reportes::%arg-1%::nick} is not set:
+            send "&c❌ Report #%arg-1% não encontrado."
+            stop
+
+        delete {reportes::%arg-1%::*}
+        send "&a✅ Report #%arg-1% deletado com sucesso!"
+
+# Atualizar ID
+command /reportatualizarids:
+    permission: report.staff
+    trigger:
+        if {reportes::contador} is not set:
+            send "&c❌ Nenhum report para atualizar."
+            stop
+
+        set {_max} to {reportes::contador}
+        set {_newcount} to 0
+
+        # Criar um mapa temporário para os reports organizados
+        loop {_max} times:
+            set {_i} to loop-number
+            if {reportes::%{_i}%::nick} is set:
+                add 1 to {_newcount}
+                # Salva os dados temporariamente com índice novo
+                set {tmp::%{_newcount}%::nick} to {reportes::%{_i}%::nick}
+                set {tmp::%{_newcount}%::alvo} to {reportes::%{_i}%::alvo}
+                set {tmp::%{_newcount}%::motivo} to {reportes::%{_i}%::motivo}
+                set {tmp::%{_newcount}%::prova} to {reportes::%{_i}%::prova}
+                set {tmp::%{_newcount}%::status} to {reportes::%{_i}%::status}
+
+        # Apaga todos os reports antigos
+        loop {_max} times:
+            delete {reportes::%loop-number%::*}
+
+        # Copia os dados de volta com IDs organizados
+        loop {_newcount} times:
+            set {_i} to loop-number
+            set {reportes::%{_i}%::nick} to {tmp::%{_i}%::nick}
+            set {reportes::%{_i}%::alvo} to {tmp::%{_i}%::alvo}
+            set {reportes::%{_i}%::motivo} to {tmp::%{_i}%::motivo}
+            set {reportes::%{_i}%::prova} to {tmp::%{_i}%::prova}
+            set {reportes::%{_i}%::status} to {tmp::%{_i}%::status}
+
+            delete {tmp::%{_i}%::*}
+
+        set {reportes::contador} to {_newcount}
+
+        send "&a✅ Reports reorganizados! Total agora: %{_newcount}%"
